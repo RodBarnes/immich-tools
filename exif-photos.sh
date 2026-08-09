@@ -95,6 +95,7 @@ count_video=0
 count_errors=0
 count_desc_written=0
 count_desc_skipped=0
+count_needs_desc=0
 declare -A skipped_type_counts=()
 
 # ---------------------------------------------------------------------------
@@ -454,6 +455,7 @@ while IFS= read -r -d '' file; do
         new_desc=$(derive_description "$file" "$BASE_DIR")
         if [[ -n "$new_desc" ]]; then
             needs_desc=true
+            (( count_needs_desc++ )) || true
             if [[ "$MODE" == "report" ]]; then
                 log "MISSING [desc] $file  =>  $new_desc"
             fi
@@ -524,6 +526,7 @@ log "Files processed (photo types)             : $count_processed"
 log "Already complete (date + desc present)   : $count_has_date"
 log "Missing DateTimeOriginal                 : $count_missing"
 log "  Needs review (no date source found)    : $count_needs_review"
+log "Needs description added                  : $count_needs_desc"
 if [[ "$MODE" == "update" ]]; then
 log "  Updated from filename                  : $count_updated_filename"
 log "  Updated from directory                 : $count_updated_dir"
