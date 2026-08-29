@@ -229,6 +229,26 @@ than by album (see `STATE.md`).
   `https://photos.advappsw.com` — intentional, since this never touches
   Caddy/Cloudflare's TLS termination at all, so there's no protocol-mismatch
   risk the way there was for the mobile apps (see `STATE.md`).
+- **`-o`/`--override` must precede the zip path** — the flag is only checked
+  against `$1` before the two positional args are consumed; passing it after
+  `<zip_file>` silently shifts it into the `album_name` slot instead of
+  erroring. Confirmed during testing 2026-08-28 (see `STATE.md`). Documented
+  as a usage constraint, not yet hardened in the script itself.
+- **Filename extraction must not invoke `basename` via `xargs -n1`** — that
+  splits on whitespace, so any filename containing a space (a normal
+  occurrence in this photo archive, e.g. `North Rim Grand Canyon.jpg`)
+  fragments into multiple bogus single-word "filenames." Fixed 2026-08-28:
+  extraction now uses a `while IFS= read -r` loop with `${entry##*/}`, which
+  treats each `unzip -Z1` line as one unit.
+- **API responses must be passed to `python3` via stdin, not an environment
+  variable.** Passing a large response as `RESP="$response"` risks
+  `execve`'s combined argv+envp size limit (`ARG_MAX`) — confirmed
+  2026-08-28 when a bogus fragment produced by the `xargs` bug above (a
+  short, generic word) apparently broad-matched many assets via
+  `/search/metadata`, and the resulting response blew `ARG_MAX`, silently
+  dropping that filename from all three result buckets (no error, since the
+  script has no `set -e`). All three `python3` calls that consume an API
+  response now read it from stdin (`<<<"$response"`) instead.
 
 ## Immich on-disk library layout
 

@@ -2,6 +2,42 @@
 
 _Last updated: 2026-08-28_
 
+## `create-album.sh` test plan executed — complete (2026-08-28)
+
+A test plan (`test-plan-create-album.md`, written this session since the
+original from a prior session couldn't be located — not in this repo's
+history, not in the merge commit that brought `create-album.sh` over from
+the old `immich` project) was run end-to-end against real test zips and
+Rod's own Immich account. Tests 1–9 passed; test 10 (cross-account scoping
+regression check) was explicitly waived — already verified previously per
+`DESIGN.md`, not new ground.
+
+**Two real bugs found and fixed during testing** (see `DESIGN.md` for full
+mechanism, commit `1150215`):
+- **Test 5** (existing album + `-o`) initially failed: `-o` was passed
+  *after* the zip path (`create-album.sh data/test.zip -o "Test album 1"`)
+  and got silently absorbed into the `album_name` slot instead of erroring
+  — created a bogus album literally named `-o`. Root cause: the script only
+  checks `$1` for the flag. Not fixed in the script (documented as a usage
+  constraint instead) — flag must precede the zip path.
+- **Test 7** (zero-resolved case) crashed with `python3: Argument list too
+  long`. Root cause, confirmed via exact arithmetic (9 reported candidates
+  from a 4-file zip, matching 3+4+1+1 word-split fragments): the script's
+  `xargs -n1 basename` step splits filenames containing spaces into
+  separate bogus single-word "filenames." One such fragment then
+  broad-matched a large number of assets via `/search/metadata`, and
+  passing that huge response into `python3` via an environment variable
+  (`RESP="$response"`) exceeded `ARG_MAX`, silently dropping that entry from
+  all result buckets. Fixed: filename extraction now avoids `basename`
+  entirely (bash parameter expansion in a `while read` loop); all API
+  responses are now piped to `python3` via stdin instead of an environment
+  variable.
+
+Stray test album named `-o` (created during the test-5 failure) should be
+deleted manually from the Immich UI if not already done.
+
+`create-album.sh` is considered ready for real use next session.
+
 ## README.md rewrite (2026-08-28) — complete
 
 `README.md` was still titled/scoped as `exif-tools` and documented only
