@@ -1,0 +1,132 @@
+# Immich Installation Runbook
+# Target: boss (192.168.0.19), Debian 13
+
+# ============================================================
+# PHASE 1 — Preparation on boss
+# ============================================================
+
+# Create directory structure
+sudo mkdir -p /opt/immich
+sudo mkdir -p /mnt/data/immich/library
+sudo mkdir -p /mnt/data/immich/postgres
+
+# Copy files into place
+sudo cp immich-docker-compose.yml /opt/immich/docker-compose.yml
+sudo cp immich.env /opt/immich/.env
+
+# Fill in credentials before proceeding
+sudo vi /opt/immich/.env
+# Replace <db_password> and <secret_key> with your actual values from Keeper
+
+# Set permissions — .env should not be world-readable
+sudo chmod 600 /opt/immich/.env
+sudo chown root:root /opt/immich/.env
+
+# ============================================================
+# PHASE 2 — Cloudflare DNS (MUST be done before Caddy is updated)
+# ============================================================
+
+# IMPORTANT: Caddy attempts TLS certificate acquisition immediately when it
+# loads a new stanza. If the Cloudflare DNS record does not exist at that
+# moment, Let's Encrypt will return NXDOMAIN, the ACME challenge will fail,
+# and Caddy will back off. A full container restart is then required to
+# force a retry. Always add the Cloudflare record first.
+
+# In the Cloudflare dashboard for advappsw.com:
+#   Type:          A
+#   Name:          photos
+#   Content:       24.116.156.125   (your public IP)
+#   Proxy status:  DNS only         (grey cloud — NOT proxied)
+#   TTL:           Auto
+#
+# NOTE: All A records for this domain must be DNS-only (grey cloud).
+# Caddy on mite is the TLS terminator. Enabling Cloudflare proxy causes
+# double TLS termination and imposes a 100MB upload limit — both are
+# problems for Immich. This applies to all subdomains (cloud, auto,
+# media, photos, etc.).
+#
+# Verify propagation before proceeding:
+#   dig @1.1.1.1 photos.advappsw.com
+# Wait until you see your public IP in the ANSWER SECTION.
+
+# ============================================================
+# PHASE 3 — DNS on mite (Pi-hole)
+# ============================================================
+
+# Add a local DNS record in Pi-hole admin UI (Settings > Local DNS Records):
+#   Domain:  photos.advappsw.com
+#   IP:      192.168.0.8    (mite's IP — Caddy handles it from there)
+#
+# NOTE: Pi-hole may cache a negative (NXDOMAIN) answer if the record is
+# looked up before it exists. If local resolution fails after adding the
+# record, flush the cache:
+#   docker exec pihole pihole reloaddns
+# Then verify:
+#   dig @192.168.0.8 photos.advappsw.com
+
+# ============================================================
+# PHASE 4 — Caddy update on mite
+# ============================================================
+
+# Only proceed once Cloudflare DNS is confirmed propagated (Phase 2).
+
+# On mite:
+# Append the contents of immich-caddyfile-stanza.txt to /opt/caddy/Caddyfile
+
+sudo vi /opt/caddy/Caddyfile
+# Paste the stanza at the end of the file
+
+# Restart the Caddy container (not just reload) to ensure cert acquisition
+# is attempted cleanly for the new stanza:
+cd /opt/caddy
+docker compose down && docker compose up -d
+
+# Watch for successful cert acquisition:
+docker logs caddy -f 2>&1 | grep photos
+# You should see:
+#   acquiring lock -> lock acquired -> obtaining certificate -> (challenge attempts) -> cert obtained
+# If you see NXDOMAIN errors, DNS has not propagated yet — go back to Phase 2.
+
+# Verify cert was obtained:
+docker exec caddy ls /data/caddy/certificates/acme-v02.api.letsencrypt.org-directory/photos.advappsw.com/
+
+# ============================================================
+# PHASE 5 — Start the Immich stack on boss
+# ============================================================
+
+cd /opt/immich
+sudo docker compose up -d
+
+# Verify all four containers are running
+sudo docker ps | grep immich
+
+# Monitor startup — ML container downloads models on first run (~4GB), will take time
+sudo docker logs -f immich-server
+sudo docker logs -f immich-machine-learning
+
+# ============================================================
+# PHASE 6 — Initial Immich configuration (web UI)
+# ============================================================
+
+# Access: https://photos.advappsw.com
+# (or http://192.168.0.19:2283 directly if DNS is not yet working)
+
+# 1. Create admin account on first run
+# 2. In Administration > Settings > Server Settings:
+#    Set External Domain to: https://photos.advappsw.com
+# 3. Confirm library path is accessible (mapped to /usr/src/app/upload in container)
+
+# ============================================================
+# PHASE 7 — Photo import (after photos are transferred to boss)
+# ============================================================
+
+# Photos from media should land at /mnt/data/immich/library
+# or a subdirectory of it before import.
+#
+# Import options (decide at import time):
+#   A) Immich UI upload — fine for smaller batches
+#   B) immich-go CLI tool — better for bulk import, handles Google Photos too
+#
+# Google Photos import (two accounts) follows after local library is done.
+# immich-go handles the JSON sidecar matching from Google Takeout downloads.
+# NOTE: Download Google Photos directly (not via Takeout) to preserve GPS EXIF.
