@@ -72,7 +72,7 @@ mapfile -t FILENAMES < <(
     unzip -Z1 "$ZIP_FILE" \
         | grep -viE '\.json$' \
         | grep -iE "$MEDIA_EXT_REGEX" \
-        | xargs -n1 basename \
+        | while IFS= read -r entry; do echo "${entry##*/}"; done \
         | sort -u
 )
 
@@ -91,10 +91,10 @@ for fname in "${FILENAMES[@]}"; do
     esc_fname=$(FNAME="$fname" python3 -c 'import json,os; print(json.dumps(os.environ["FNAME"]))')
     response=$(api POST "/search/metadata" "{\"originalFileName\": $esc_fname}")
 
-    count=$(RESP="$response" python3 -c 'import json,os; d=json.loads(os.environ["RESP"]); print(len(d["assets"]["items"]))')
+    count=$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(len(d["assets"]["items"]))' <<<"$response")
 
     if [[ "$count" -eq 1 ]]; then
-        id=$(RESP="$response" python3 -c 'import json,os; d=json.loads(os.environ["RESP"]); print(d["assets"]["items"][0]["id"])')
+        id=$(python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["assets"]["items"][0]["id"])' <<<"$response")
         RESOLVED_IDS+=("$id")
     elif [[ "$count" -eq 0 ]]; then
         NOT_FOUND+=("$fname")
@@ -127,13 +127,13 @@ if [[ ${#RESOLVED_IDS[@]} -eq 0 ]]; then
 fi
 
 albums_response=$(api GET "/albums" "")
-existing_id=$(RESP="$albums_response" NAME="$ALBUM_NAME" python3 -c '
-import json, os
-albums = json.loads(os.environ["RESP"])
+existing_id=$(NAME="$ALBUM_NAME" python3 -c '
+import json, os, sys
+albums = json.load(sys.stdin)
 name = os.environ["NAME"]
 matches = [a["id"] for a in albums if a.get("albumName") == name]
 print(matches[0] if len(matches) == 1 else ("MULTIPLE" if len(matches) > 1 else ""))
-')
+' <<<"$albums_response")
 
 if [[ "$existing_id" == "MULTIPLE" ]]; then
     echo "Error: multiple existing albums named '$ALBUM_NAME' — resolve manually before proceeding."
