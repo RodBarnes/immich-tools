@@ -1,6 +1,15 @@
 # Immich Migration — Project State
 
-_Last updated: 2026-08-29_
+_Last updated: 2026-08-28_
+
+## README.md rewrite (2026-08-28) — complete
+
+`README.md` was still titled/scoped as `exif-tools` and documented only
+`exif-classify.sh`/`exif-photos.sh`, with no mention of `import.sh`,
+`create-album.sh`, or `find-duplicates.sh`, or the repo's actual scope
+(import pipeline, not just EXIF prep). Rewritten to describe all five tools
+in pipeline order (dedup → classify → EXIF fill → upload → album
+recreation) with usage and purpose for each. Committed as `2b851d0`.
 
 ## Repo consolidation (2026-08-29) — complete
 
