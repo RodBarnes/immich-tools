@@ -52,28 +52,28 @@ if [ $# == 0 ]; then
   exit 1
 fi
 
-command="exiftool -GPSAltitudeRef=0 -overwrite_original"
+args=(-GPSAltitudeRef=0 -overwrite_original)
+
 if [[ "$datetime" != "" ]]; then
-    command="$command -EXIF:DateTimeOriginal=\"$datetime\""
+    args+=(-EXIF:DateTimeOriginal="$datetime")
 fi
 
 if [[ "$offset" != "" ]]; then
-    command="$command -EXIF:OffsetTimeOriginal=\"$offset\""
+    args+=(-EXIF:OffsetTimeOriginal="$offset")
 fi
 
 if [[ "$gps" != "" ]]; then
     lat="${gps%%,*}"
-    [[ lat < 0 ]] && latref="S" || latref="N"
+    [[ "$lat" == -* ]] && latref="S" || latref="N"
     lng="${gps#*,}"
-    [[ lng < 0 ]] && lngref="W" || lngref="E"
-    command="$command -GPSLatitude=\"$lat\" -GPSLatitudeRef=\"$latref\" -GPSLongitude=\"$lng\" -GPSLongitudeRef=\"$lngref\""
+    [[ "$lng" == -* ]] && lngref="W" || lngref="E"
+    args+=(-GPSLatitude="$lat" -GPSLatitudeRef="$latref" -GPSLongitude="$lng" -GPSLongitudeRef="$lngref")
+    alt="${alt:-0}"
+    args+=(-GPSAltitude="$alt")
 fi
 
-alt="${alt:-0}"
 filename="$1"
-command="$command \"$filename\""
+args+=("$filename")
 
-($command)
-
-# exiftool -EXIF:DateTimeOriginal="$datetime" -EXIF:OffsetTimeOriginal="$offset" -GPSLatitude="$lat" -GPSLatitudeRef="$latref" -GPSLongitude="$lng" -GPSLongitudeRef="$lngref"  -GPSAltitude="$alt" -GPSAltitudeRef=0 "$filename" -overwrite_original
-# exiftool -gps:all -time:all -a "$filename"
+exiftool "${args[@]}"
+exiftool -gps:all -time:all -a "$filename"
