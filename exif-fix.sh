@@ -6,7 +6,7 @@ show_syntax() {
     echo "        <datetime> is the value to be applied"
     echo "        <tz-offset> is the value to be applied"
     echo "        <gps> is the GPS coordinates as \"lat,lng\"" to be applied
-    echo "        <alt> is the GPS altitude to be applied"
+    echo "        <alt> is the GPS altitude in feet to be applied"
 }
 
 arg_short=d:z:g:a:
@@ -69,7 +69,8 @@ if [[ "$gps" != "" ]]; then
     [[ "$lng" == -* ]] && lngref="W" || lngref="E"
     args+=(-GPSLatitude="$lat" -GPSLatitudeRef="$latref" -GPSLongitude="$lng" -GPSLongitudeRef="$lngref")
     alt="${alt:-0}"
-    args+=(-GPSAltitude="$alt")
+    alt_m=$(echo "$alt * 0.3048" | bc -l)
+    args+=(-GPSAltitude="$alt_m")
 fi
 
 filename="$1"
