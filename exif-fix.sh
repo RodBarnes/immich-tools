@@ -1,12 +1,12 @@
 #!/bin/bash
 
 show_syntax() {
-    echo "Syntax: $(basename $0) [-d|datetime <datetime>] [-z|tz <timezone-offset>] [-t|lat latitude] [-n|lng longitude] <filename>"
-    echo "Where:  <filename> is the name of the file to be updated."
-    echo "        <datetime> is the value to be applied to DateTimeOriginal"
-    echo "        <timezone-offset> is the value to be applied to OffsetTimeOriginal"
-    echo "        <latitude> is the GPS latitude value"
-    echo "        <longitude> is the GPS longitude value"
+    echo "Syntax: $(basename $0) [-d|--datetime <datetime>] [-z|--tz <tz-offset>] [-g|--gps lat,lng] [-a|--alt altitude] <filename>"
+    echo "Where:  <filename> is the name of the file to be updated"
+    echo "        <datetime> is the value to be applied"
+    echo "        <tz-offset> is the value to be applied"
+    echo "        <gps> is the GPS coordinates as \"lat,lng\"" to be applied
+    echo "        <alt> is the GPS altitude to be applied"
 }
 
 arg_short=d:z:g:a:
