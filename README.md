@@ -32,7 +32,7 @@ sudo apt install libimage-exiftool-perl
 
 ## Tools
 
-Typical pipeline order for a new batch of photos:
+Tools used in pre-processing and importing photos/images into Immich:
 
 ### 1. `find-duplicates.sh` — remove files already present elsewhere
 
@@ -101,6 +101,13 @@ filename to an already-imported Immich asset via the search API, then
 creates (or, with `-o`/`--override`, adds to) an album with those assets.
 Filenames with zero or multiple matches are logged to review files rather
 than guessed.
+
+### 6. `exif-fix.sh` -- update EXIF data on file
+```bash
+./exif-fix.sh [-d|--datetime <datetime>] [-z|--tz <tz-offset>] [-g|--gps lat,lng] [-a|--alt altitude] <filename>
+```
+
+Allows directly updating the EXIF by manually supplying datetime, timezone offset, gps coordinates, and/or altitude.
 
 ---
 
