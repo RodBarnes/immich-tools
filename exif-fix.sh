@@ -64,8 +64,10 @@ fi
 
 if [[ "$gps" != "" ]]; then
     lat="${gps%%,*}"
+    lat="${lat// /}"
     [[ "$lat" == -* ]] && latref="S" || latref="N"
     lng="${gps#*,}"
+    lng="${lng// /}"
     [[ "$lng" == -* ]] && lngref="W" || lngref="E"
     args+=(-GPSLatitude="$lat" -GPSLatitudeRef="$latref" -GPSLongitude="$lng" -GPSLongitudeRef="$lngref")
     alt="${alt:-0}"
