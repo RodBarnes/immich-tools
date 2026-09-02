@@ -118,7 +118,12 @@ Tracked in `album-timezones.csv` (repo root) — one row per album:
   year) — this doesn't break anything mechanically, since everything keys
   off `album.id`, not name. `album-timezones.csv` includes each album's
   `description` and date range specifically so duplicate-named rows are
-  still distinguishable without opening the UI for each one.
+  still distinguishable without opening the UI for each one. **Superseded
+  by a naming policy decided 2026-09-01** — see
+  `topics/album-naming-policy.md`: using Immich's "Group by year" album
+  view lets the year drop out of the name entirely (e.g. `Tour: Canada`
+  instead of `Tour: 2017`), so this disambiguation workaround won't be
+  needed for newly-renamed albums going forward.
 
 ### Non-album photos (4,190)
 

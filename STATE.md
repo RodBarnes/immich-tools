@@ -67,6 +67,7 @@ stays on `boss` or wherever it's actively being worked, excluded via
 | Topic | Status | Doc |
 |---|---|---|
 | Timezone correction for already-imported photos | active | `topics/timezone-correction.md` |
+| Album naming/organization policy (year via grouping, not name) | done | `topics/album-naming-policy.md` |
 | `Family/` named-folder import pass | active (current focus) | `topics/family-folder-import.md` |
 | Karen/Rod cross-account mis-import correction | active, stalled on count verification | `topics/karen-rod-misimport.md` |
 | "Imported" album shows 0 items | parked since 2026-08-08 | `topics/imported-album-zero-items.md` |
