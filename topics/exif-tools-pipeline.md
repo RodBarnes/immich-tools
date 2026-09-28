@@ -73,6 +73,33 @@ patterns fail silently in bash (see `topics/immich-internals.md`).
    ever fabricated, and no description is written for a file with no date
    source either.
 
+**`--time` / `--tz` options (added 2026-09-27):** without them, date-only
+sources (`YYYYMMDD` name, `YYYY/MM` dir, year-only) are written as
+`00:00:00` with no offset tag, which Immich treats as midnight UTC.
+- `--time HH:MM[:SS]` replaces that `00:00:00` only for sources that have
+  no time of their own; `YYYYMMDD_HHMMSS`/`MMDDYYHHMM` names keep their
+  parsed time.
+- `--tz` takes a fixed `±HH:MM` or an IANA zone name (e.g.
+  `America/Boise`). A zone name is resolved per file against that file's
+  date+time, so DST is applied. Written as `OffsetTimeOriginal`,
+  `OffsetTimeDigitized`, `OffsetTime`, only on files whose date this
+  script writes. Files with an existing `DateTimeOriginal` are untouched.
+- Options go before the mode:
+  `exif-photos.sh --tz America/Boise --time 12:00 report <dir>`.
+- Why `--tz` is needed even for photos that will later get a location
+  (confirmed by Rod's tests, 2026-09-27):
+  - With **no** offset in the file, adding a location in Immich sets the
+    timezone from the location but keeps the UTC moment fixed. Example:
+    `1998:06:02 00:00:00` (no offset) showed as midnight UTC. After the
+    location was added it became 5pm -07:00 on **June 1**, so the date
+    moved back a day.
+  - With an offset **already** in the file (written by `--tz` or directly
+    with exiftool), adding a location changes neither the time nor the
+    timezone.
+- Tested end to end 2026-09-27: `--tz -07:00 --time 15:00 update` on an
+  undated file under `YYYY/MM` → `import.sh` → location added in Immich;
+  the date, time and offset were all unchanged.
+
 Applies uniformly whether a file has no EXIF at all or has EXIF but is
 missing `DateTimeOriginal` specifically. The script never uses a file's
 own filesystem timestamp as a date source (that's a separate, Immich-side

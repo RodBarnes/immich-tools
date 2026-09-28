@@ -7,8 +7,21 @@
 # Processes files missing DateTimeOriginal OR missing Description.
 #
 # Usage:
-#   exif-photos.sh report <base_dir> [logfile]
-#   exif-photos.sh update <base_dir> [logfile]
+#   exif-photos.sh [--tz <zone>] [--time HH:MM[:SS]] report <base_dir> [logfile]
+#   exif-photos.sh [--tz <zone>] [--time HH:MM[:SS]] update <base_dir> [logfile]
+#
+# Options:
+#   --tz <zone>   Timezone for dates this script writes. Either a fixed
+#                 offset (e.g. -07:00) or an IANA zone name (e.g.
+#                 America/Boise) — a zone name is resolved per file from
+#                 that file's date/time, so DST is handled automatically.
+#                 Written as OffsetTimeOriginal/OffsetTimeDigitized/OffsetTime.
+#                 Files with an existing DateTimeOriginal are not touched.
+#   --time HH:MM[:SS]
+#                 Time of day for date sources that carry no time of their
+#                 own (YYYYMMDD filename, YYYY/MM directory, year-only).
+#                 Sources with a real time (YYYYMMDD_HHMMSS, MMDDYYHHMM)
+#                 keep it. Default 00:00:00.
 #
 # Modes:
 #   report  -- Preview what update would do; no changes made
@@ -18,10 +31,11 @@
 #   1. Existing EXIF value, if present — left untouched
 #   2. Timestamp parsed from filename (YYYYMMDD_HHMMSS, YYYYMMDD, MMDDYYHHMMSS)
 #   3. YYYY/MM from directory path (if present anywhere in the path), defaulting
-#      to 01 00:00:00
+#      to day 01
 #   4. Standalone 4-digit year in the filename (e.g. "Andrew 1989.jpg"),
 #      defaulting to 01/01 — lowest-confidence source, logged distinctly as
 #      "filename-year-only" so it can be spot-checked later
+#   Sources without a time of their own use --time (default 00:00:00).
 #   If none of these yield a date, the file is left untouched and flagged
 #   NEEDS REVIEW — no date is ever fabricated.
 #
@@ -43,9 +57,61 @@ set -euo pipefail
 # ---------------------------------------------------------------------------
 # Arguments
 # ---------------------------------------------------------------------------
-if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 report|update <base_dir> [logfile]"
+usage() {
+    echo "Usage: $0 [--tz <offset|zone>] [--time HH:MM[:SS]] report|update <base_dir> [logfile]"
     exit 1
+}
+
+TZ_ARG=""
+TIME_ARG=""
+while [[ $# -gt 0 && "$1" == --* ]]; do
+    case "$1" in
+        --tz)
+            [[ $# -ge 2 ]] || usage
+            TZ_ARG="$2"
+            shift 2
+            ;;
+        --time)
+            [[ $# -ge 2 ]] || usage
+            TIME_ARG="$2"
+            shift 2
+            ;;
+        *)
+            echo "Error: unknown option '$1'"
+            usage
+            ;;
+    esac
+done
+
+if [[ $# -lt 2 ]]; then
+    usage
+fi
+
+# Validate --tz: fixed offset (±HH:MM) or IANA zone name
+TZ_FIXED=""
+TZ_ZONE=""
+if [[ -n "$TZ_ARG" ]]; then
+    pat_offset='^[+-]([01][0-9]|2[0-3]):[0-5][0-9]$'
+    if [[ "$TZ_ARG" =~ $pat_offset ]]; then
+        TZ_FIXED="$TZ_ARG"
+    elif [[ "$TZ_ARG" != /* && "$TZ_ARG" != *..* && -f "/usr/share/zoneinfo/$TZ_ARG" ]]; then
+        TZ_ZONE="$TZ_ARG"
+    else
+        echo "Error: --tz must be an offset like -07:00 or a zone name like America/Boise"
+        exit 1
+    fi
+fi
+
+# Validate --time: HH:MM or HH:MM:SS; normalize to HH:MM:SS
+DEFAULT_TIME="00:00:00"
+if [[ -n "$TIME_ARG" ]]; then
+    pat_time='^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$'
+    if [[ ! "$TIME_ARG" =~ $pat_time ]]; then
+        echo "Error: --time must be HH:MM or HH:MM:SS (24-hour)"
+        exit 1
+    fi
+    [[ -z "${BASH_REMATCH[2]}" ]] && TIME_ARG="${TIME_ARG}:00"
+    DEFAULT_TIME="$TIME_ARG"
 fi
 
 MODE="$1"
@@ -111,6 +177,8 @@ log "exif_photos.sh"
 log "Mode     : $MODE"
 log "Base dir : $BASE_DIR"
 log "Log file : $LOGFILE"
+log "Timezone : ${TZ_ARG:-none}"
+log "Time     : ${TIME_ARG:-none}"
 log "Started  : $(date)"
 log "========================================"
 log ""
@@ -167,7 +235,8 @@ get_exif_desc() {
 #   1. YYYYMMDD_HHMMSS  (e.g. 20141008_135239, anywhere in name)
 #   2. YYYYMMDD         (e.g. IMG_20141008, anywhere in name)
 #   3. MMDDYYHHMMSS     (e.g. 0304011035, 0304011035a — phone format, whole name)
-# Returns exiftool-format date string: YYYY:MM:DD HH:MM:SS  or empty
+# Returns YYYY:MM:DD HH:MM:SS when the name carries a time, YYYY:MM:DD
+# (no time — caller supplies it) when it does not, or empty
 # ---------------------------------------------------------------------------
 parse_date_from_filename() {
     local filename="$1"
@@ -209,7 +278,7 @@ parse_date_from_filename() {
         local y="${BASH_REMATCH[2]}"
         local mo="${BASH_REMATCH[3]}"
         local d="${BASH_REMATCH[4]}"
-        echo "${y}:${mo}:${d} 00:00:00"
+        echo "${y}:${mo}:${d}"
         return
     fi
 
@@ -219,7 +288,7 @@ parse_date_from_filename() {
 # ---------------------------------------------------------------------------
 # Helper: parse date from directory path
 # Expects path to contain /YYYY/MM/ somewhere
-# Returns exiftool-format date string or empty
+# Returns YYYY:MM:01 (no time — caller supplies it) or empty
 # ---------------------------------------------------------------------------
 parse_date_from_dir() {
     local filepath="$1"
@@ -230,7 +299,7 @@ parse_date_from_dir() {
     if [[ "$dir" =~ /([0-9]{4})/([0-9]{2})(/|$) ]]; then
         local y="${BASH_REMATCH[1]}"
         local mo="${BASH_REMATCH[2]}"
-        echo "${y}:${mo}:01 00:00:00"
+        echo "${y}:${mo}:01"
         return
     fi
 
@@ -245,7 +314,7 @@ parse_date_from_dir() {
 # (e.g. "DSC02021" has no 4-digit window with non-digit neighbors on both
 # sides). Rejects years in the future. Defaults month/day to 01/01 since
 # only the year is known.
-# Returns exiftool-format date string or empty
+# Returns YYYY:01:01 (no time — caller supplies it) or empty
 # ---------------------------------------------------------------------------
 parse_year_only_from_filename() {
     local filename="$1"
@@ -259,7 +328,7 @@ parse_year_only_from_filename() {
         local current_year
         current_year=$(date +%Y)
         if [[ "$y" -le "$current_year" ]]; then
-            echo "${y}:01:01 00:00:00"
+            echo "${y}:01:01"
             return
         fi
     fi
@@ -274,6 +343,24 @@ is_valid_year_month() {
     local y="$1"
     local mo="$2"
     [[ "$y" -ge 1800 && "$y" -le 2100 && "$mo" -ge 1 && "$mo" -le 12 ]]
+}
+
+# ---------------------------------------------------------------------------
+# Helper: resolve the --tz offset for a given exiftool-format date
+# Fixed offset is returned as-is; a zone name is resolved for that specific
+# date/time so DST is applied correctly. Returns ±HH:MM, or empty if no --tz.
+# ---------------------------------------------------------------------------
+resolve_offset() {
+    local exif_date="$1"   # YYYY:MM:DD HH:MM:SS
+    if [[ -n "$TZ_FIXED" ]]; then
+        echo "$TZ_FIXED"
+    elif [[ -n "$TZ_ZONE" ]]; then
+        local d="${exif_date%% *}"
+        local t="${exif_date#* }"
+        TZ="$TZ_ZONE" date -d "${d//:/-} $t" +%:z
+    else
+        echo ""
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -410,6 +497,7 @@ while IFS= read -r -d '' file; do
     existing_date=$(get_exif_date "$file")
     needs_date=false
     new_date=""
+    new_offset=""
     date_source=""
 
     if [[ -z "$existing_date" ]]; then
@@ -439,8 +527,14 @@ while IFS= read -r -d '' file; do
             continue
         fi
 
+        # Date-only sources carry no time of their own — use --time (or
+        # 00:00:00). Offset is resolved after the time is final so a zone
+        # name picks the correct side of a DST change.
+        [[ "$new_date" != *" "* ]] && new_date="$new_date $DEFAULT_TIME"
+        new_offset=$(resolve_offset "$new_date")
+
         if [[ "$MODE" == "report" ]]; then
-            log "MISSING [date:$date_source] $new_date  $file"
+            log "MISSING [date:$date_source] $new_date${new_offset:+ $new_offset}  $file"
         fi
     fi
 
@@ -484,6 +578,13 @@ while IFS= read -r -d '' file; do
             -DateTimeOriginal="$new_date"
             -CreateDate="$new_date"
         )
+        if [[ -n "$new_offset" ]]; then
+            exiftool_args+=(
+                -OffsetTimeOriginal="$new_offset"
+                -OffsetTimeDigitized="$new_offset"
+                -OffsetTime="$new_offset"
+            )
+        fi
     fi
 
     if $needs_desc; then
@@ -497,7 +598,7 @@ while IFS= read -r -d '' file; do
         touch -d "$mtime" "$file"
 
         if $needs_date; then
-            log "UPDATED [date:$date_source] $new_date  $file"
+            log "UPDATED [date:$date_source] $new_date${new_offset:+ $new_offset}  $file"
             if [[ "$date_source" == "filename" ]]; then
                 (( count_updated_filename++ )) || true
             else
