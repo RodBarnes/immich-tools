@@ -70,25 +70,25 @@ The server otherwise appeared to respond normally (other existing photos/videos 
 
 Check for job failures by type (gives asset ID + full error/stack trace):
 ```
-sudo docker logs immich-server --tail 500 2>&1 | grep -B2 -A15 "Unable to run job handler (<JobType>)"
+sudo docker logs immich_server --tail 500 2>&1 | grep -B2 -A15 "Unable to run job handler (<JobType>)"
 ```
 
 Look up an asset's filename from its ID:
 ```
-sudo docker exec -it immich-postgres psql -U immich -d immich -c "SELECT id, \"originalFileName\" FROM asset WHERE id = '<asset-id>';" -P pager=off
+sudo docker exec -it immich_postgres psql -U immich -d immich -c "SELECT id, \"originalFileName\" FROM asset WHERE id = '<asset-id>';" -P pager=off
 ```
 
 Check/revert `log_statement` (must be two SEPARATE `-c` calls — `ALTER SYSTEM` cannot run in the same implicit transaction as another statement):
 ```
-sudo docker exec immich-postgres psql -U immich -d immich -c "ALTER SYSTEM SET log_statement = 'none';" -P pager=off
-sudo docker exec immich-postgres psql -U immich -d immich -c "SELECT pg_reload_conf();" -P pager=off
-sudo docker exec immich-postgres psql -U immich -d immich -c "SHOW log_statement;" -P pager=off
+sudo docker exec immich_postgres psql -U immich -d immich -c "ALTER SYSTEM SET log_statement = 'none';" -P pager=off
+sudo docker exec immich_postgres psql -U immich -d immich -c "SELECT pg_reload_conf();" -P pager=off
+sudo docker exec immich_postgres psql -U immich -d immich -c "SHOW log_statement;" -P pager=off
 ```
 
 List/read the real Postgres log files (not `docker logs`):
 ```
-sudo docker exec immich-postgres bash -c "ls -la /var/lib/postgresql/data/log/ | tail -10"
-sudo docker exec immich-postgres bash -c "grep -i 'vecto\|background worker\|PANIC\|FATAL\|WARNING' /var/lib/postgresql/data/log/postgresql-<date>.log | tail -60"
+sudo docker exec immich_postgres bash -c "ls -la /var/lib/postgresql/data/log/ | tail -10"
+sudo docker exec immich_postgres bash -c "grep -i 'vecto\|background worker\|PANIC\|FATAL\|WARNING' /var/lib/postgresql/data/log/postgresql-<date>.log | tail -60"
 ```
 
 Check for OOM-kill events and memory headroom:
@@ -106,7 +106,7 @@ nproc
 
 **Fix for the pgvecto.rs IPC hang (confirmed working):**
 ```
-sudo docker restart immich-postgres
+sudo docker restart immich_postgres
 ```
 
 ## Final status (2026-08-16, session paused ~22:22 local)
@@ -129,7 +129,8 @@ Earlier it was tentatively concluded that "Missing" relabeling to "Discover" aft
 
 ### Next session priorities
 
-1. **Find out why automatic job dispatch on upload isn't happening.** Proposed test (not yet performed): upload a single small test file through the browser while tailing `sudo docker logs -f immich-server`, to see whether the job-enqueue call fires (and succeeds or errors) at the moment of upload.
-2. **Check `immich-redis`** — all Immich job queueing runs through Redis via BullMQ, and this container's logs/health were never examined at all this session (all attention went to `immich-postgres`/pgvecto.rs). Worth checking `sudo docker logs immich-redis` and general Redis health as part of the same investigation.
-3. Watch for recurrence of the pgvecto.rs IPC hang, especially under heavy job load (`sudo docker restart immich-postgres` is the confirmed fix if it recurs).
+1. **Find out why automatic job dispatch on upload isn't happening.** Proposed test (not yet performed): upload a single small test file through the browser while tailing `sudo docker logs -f immich_server`, to see whether the job-enqueue call fires (and succeeds or errors) at the moment of upload.
+2. **Check `immich_redis`** — all Immich job queueing runs through Redis via BullMQ, and this container's logs/health were never examined at all this session (all attention went to `immich-postgres`/pgvecto.rs). Worth checking `sudo docker logs immich_redis` and general Redis health as part of the same investigation.
+3. Watch for recurrence of the pgvecto.rs IPC hang, especially under heavy job load (`sudo docker restart immich_postgres` is the confirmed fix if it recurs).
+   _Update 2026-10-08: likely no longer an issue. On 2026-08-26 Postgres was switched to the VectorChord image (`ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0`) and the old `pgvecto.rs` extension was dropped (see `topics/immich-server-upgrade.md`, Step 1), so the pgvecto.rs background worker involved in this incident is no longer in use. Keep the restart fix in mind only if similar IPC errors appear._
 4. Consider periodically re-checking all twelve job types with "Missing" until the root cause above is found and fixed, since new uploads may currently be silently undispatched the same way.

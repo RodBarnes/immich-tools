@@ -126,18 +126,18 @@ sudo grep -E "^DB_USERNAME|^DB_DATABASE_NAME" /opt/immich/.env
 
 Check currently-trashed assets in a time window:
 ```
-sudo docker exec -it immich-postgres psql -U immich -d immich -c "SELECT id, \"originalPath\", \"deletedAt\", \"updatedAt\" FROM asset WHERE \"deletedAt\" BETWEEN '<start>' AND '<end>' ORDER BY \"deletedAt\";" -P pager=off
+sudo docker exec -it immich_postgres psql -U immich -d immich -c "SELECT id, \"originalPath\", \"deletedAt\", \"updatedAt\" FROM asset WHERE \"deletedAt\" BETWEEN '<start>' AND '<end>' ORDER BY \"deletedAt\";" -P pager=off
 ```
 
 Look up an album's ID by name:
 ```
-sudo docker exec -it immich-postgres psql -U immich -d immich -c "SELECT id, \"albumName\" FROM album WHERE \"albumName\" = '<name>';" -P pager=off
+sudo docker exec -it immich_postgres psql -U immich -d immich -c "SELECT id, \"albumName\" FROM album WHERE \"albumName\" = '<name>';" -P pager=off
 ```
 
 Check audit tables (permanent-delete only, not trash/restore):
 ```
-sudo docker exec -it immich-postgres psql -U immich -d immich -c "SELECT * FROM asset_audit WHERE \"deletedAt\" BETWEEN '<start>' AND '<end>' ORDER BY \"deletedAt\";" -P pager=off
-sudo docker exec -it immich-postgres psql -U immich -d immich -c "SELECT * FROM album_asset_audit WHERE \"albumId\" = '<album-id>' ORDER BY \"deletedAt\";" -P pager=off
+sudo docker exec -it immich_postgres psql -U immich -d immich -c "SELECT * FROM asset_audit WHERE \"deletedAt\" BETWEEN '<start>' AND '<end>' ORDER BY \"deletedAt\";" -P pager=off
+sudo docker exec -it immich_postgres psql -U immich -d immich -c "SELECT * FROM album_asset_audit WHERE \"albumId\" = '<album-id>' ORDER BY \"deletedAt\";" -P pager=off
 ```
 
 Note: always append `-P pager=off` to avoid the output going into `less`

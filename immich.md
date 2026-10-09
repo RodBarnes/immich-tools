@@ -129,7 +129,7 @@ coordinates, and paste them into the photo being fixed.
 Count assets for a given user (get the UUID from the "get key/account info"
 call above):
 ```
-docker exec immich-postgres psql -U immich -d immich -c "SELECT COUNT(*) FROM asset WHERE \"ownerId\" = '<UUID>';"
+docker exec immich_postgres psql -U immich -d immich -c "SELECT COUNT(*) FROM asset WHERE \"ownerId\" = '<UUID>';"
 ```
 
 ## Cleaning up photos imported to the wrong account
@@ -141,15 +141,15 @@ what to use instead):
 
 Get the affected count:
 ```
-docker exec immich-postgres psql -U immich -d immich -c "SELECT COUNT(*) FROM asset WHERE \"createdAt\" >= '<date>' AND \"ownerId\" = '<wrong_user_uuid>';"
+docker exec immich_postgres psql -U immich -d immich -c "SELECT COUNT(*) FROM asset WHERE \"createdAt\" >= '<date>' AND \"ownerId\" = '<wrong_user_uuid>';"
 ```
 Validate the date range looks right:
 ```
-docker exec immich-postgres psql -U immich -d immich -c "SELECT MIN(\"fileCreatedAt\"), MAX(\"fileCreatedAt\") FROM asset WHERE \"createdAt\" >= '<date>' AND \"ownerId\" = '<wrong_user_uuid>';"
+docker exec immich_postgres psql -U immich -d immich -c "SELECT MIN(\"fileCreatedAt\"), MAX(\"fileCreatedAt\") FROM asset WHERE \"createdAt\" >= '<date>' AND \"ownerId\" = '<wrong_user_uuid>';"
 ```
 Export the affected asset IDs:
 ```
-docker exec immich-postgres psql -U immich -d immich -t -A -c "SELECT id FROM asset WHERE \"createdAt\" >= '<date>' AND \"ownerId\" = '<wrong_user_uuid>';" > /tmp/wrong_account_asset_ids.txt
+docker exec immich_postgres psql -U immich -d immich -t -A -c "SELECT id FROM asset WHERE \"createdAt\" >= '<date>' AND \"ownerId\" = '<wrong_user_uuid>';" > /tmp/wrong_account_asset_ids.txt
 wc -l /tmp/wrong_account_asset_ids.txt   # sanity-check the count
 ```
 Move them to trash, in batches of 100 (the `DELETE /api/assets` API moves to

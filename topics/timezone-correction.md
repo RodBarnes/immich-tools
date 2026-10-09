@@ -276,7 +276,7 @@ made through Immich's own UI at some point that isn't remembered/recorded
 
 Schema lookups:
 ```
-docker exec -it immich-postgres psql -U immich -d immich -P pager=off -c "\d asset_exif" -c "\d asset" -c "\d album_asset" -c "\d album"
+docker exec -it immich_postgres psql -U immich -d immich -P pager=off -c "\d asset_exif" -c "\d asset" -c "\d album_asset" -c "\d album"
 ```
 
 Scope/count query (missing timezone, in-album vs not):

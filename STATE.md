@@ -51,12 +51,12 @@ stays on `boss` or wherever it's actively being worked, excluded via
   `google-karen`, `google-rod`), removed once everything staged had been
   imported. No staging area currently exists; recreate if a new import
   batch is needed.
-- Postgres DB: `/mnt/data/immich/postgres`, container `immich-postgres`,
+- Postgres DB: `/mnt/data/immich/postgres`, container `immich_postgres`,
   table `asset` (see `topics/immich-internals.md` for schema detail)
 - Rod's Immich user UUID: `cf0d38b8-611f-483c-a889-38ec7029909d`
 - Karen's Immich user UUID: `6c7abd53-aac9-43fa-a607-ac3f3e205d2d`
-- Full container list: `immich-server`, `immich-postgres`, `immich-redis`,
-  `immich-machine-learning`.
+- Full container list: `immich_server`, `immich_postgres`, `immich_redis`,
+  `immich_machine_learning`.
 - DB credentials lookup (on boss): `sudo grep -E "^DB_USERNAME|^DB_DATABASE_NAME" /opt/immich/.env`
   (root-owned; needs `sudo` to read — see `topics/immich-internals.md` for
   the `docker exec ... -U/-d` pattern this feeds)

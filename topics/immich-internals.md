@@ -61,10 +61,10 @@ active discussion.
 
 ## Docker / Postgres operational notes
 
-- **`docker logs immich-server` shows only NestJS service/job logs** — no
+- **`docker logs immich_server` shows only NestJS service/job logs** — no
   HTTP-level access logs by default.
 - **Postgres query logs are NOT in `docker logs`**; written to files inside
-  the `immich-postgres` container at
+  the `immich_postgres` container at
   `/var/lib/postgresql/data/log/postgresql-<date>.log`. Enable via
   `ALTER SYSTEM SET log_statement = 'all'; SELECT pg_reload_conf();` and
   revert to `'none'` after use.
@@ -73,7 +73,7 @@ active discussion.
   a hang.
 - **`\copy` in psql is a client meta-command**, not SQL — must run inside
   an interactive/scripted `psql` session (`-f script.sql`), not via `-c`.
-  Also: `immich-postgres` only sees its own container filesystem, so files
+  Also: `immich_postgres` only sees its own container filesystem, so files
   need `docker cp`'d in before `\copy FROM` can read them, and back out
   after `\copy ... TO` writes them.
 - **Inline `-c "..."` with escaped `\"` identifier quotes is fragile**
