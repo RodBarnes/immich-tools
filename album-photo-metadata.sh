@@ -2,7 +2,7 @@
 # album-photo-metadata.sh
 #
 # Lists filename/timestamp/timezone/GPS/camera metadata for every photo in a
-# given Immich album, as CSV. Runs against the immich-postgres container
+# given Immich album, as CSV. Runs against the immich_postgres container
 # directly (read-only query), so this must be run on the Immich host (boss).
 #
 # Usage:
@@ -34,7 +34,7 @@ if [[ "$ALBUM_ARG" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{
     ALBUM_ID="$ALBUM_ARG"
     ALBUM_NAME="$ALBUM_ARG"
 else
-    MATCHES=$(docker exec immich-postgres psql -U immich -d immich --csv -t -c "
+    MATCHES=$(docker exec immich_postgres psql -U immich -d immich --csv -t -c "
         SELECT id, \"albumName\", description, min(\"createdAt\")::date
         FROM album
         WHERE \"albumName\" = '$(echo "$ALBUM_ARG" | sed "s/'/''/g")'
@@ -61,7 +61,7 @@ OUTPUT_CSV="${2:-$(echo "$ALBUM_NAME" | tr ' :' '__').csv}"
 # ---------------------------------------------------------------------------
 # Query
 # ---------------------------------------------------------------------------
-docker exec immich-postgres psql -U immich -d immich --csv -c "
+docker exec immich_postgres psql -U immich -d immich --csv -c "
 SELECT
   a.\"originalFileName\" AS filename,
   e.\"dateTimeOriginal\" AS timestamp,
